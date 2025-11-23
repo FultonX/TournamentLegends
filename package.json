@@ -1,0 +1,21 @@
+{
+  "name": "tournament-api",
+  "version": "1.0.0",
+  "description": "Tournament management API with OpenAI commentary",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["tournament", "api", "street-fighter"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "better-sqlite3": "^9.2.2",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "openai": "^4.20.1"
+  }
+}

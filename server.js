@@ -5,31 +5,26 @@ const fs = require("fs");
 const cors = require("cors");
 
 const apiRouter = require("./src/routes/api");
+const db = require("./src/db");
 
 const app = express();
 
 // --- Middleware ---
-app.use(cors());              // for now, open CORS is fine; you can tighten later
-app.use(express.json());      // parse application/json
+app.use(cors());
+app.use(express.json());
 
 // --- API routes ---
 app.use("/api", apiRouter);
 
 // --- Static React frontend ---
-// Adjust this path depending on your build tool:
-//  - Vite:  client/dist
-//  - CRA:   client/build
-const clientBuildPath = path.join(__dirname, "client", "dist"); // or "build"
+const clientBuildPath = path.join(__dirname, "client", "dist");
 
 if (fs.existsSync(clientBuildPath)) {
   console.log("Serving client from:", clientBuildPath);
 
-  // Serve static assets
   app.use(express.static(clientBuildPath));
 
-  // SPA fallback: any non-API route returns index.html
   app.get("*", (req, res) => {
-    // Don't steal /api routes
     if (req.path.startsWith("/api")) {
       return res.status(404).json({ error: "Not found" });
     }
@@ -42,7 +37,6 @@ if (fs.existsSync(clientBuildPath)) {
     "- serving API only."
   );
 
-  // Simple root route when there's no front-end build yet
   app.get("/", (req, res) => {
     res.send("Tournament API is running. Build the client to get the UI.");
   });
@@ -51,6 +45,17 @@ if (fs.existsSync(clientBuildPath)) {
 // --- Start the server ---
 const PORT = process.env.PORT || 5000;
 const HOST = '0.0.0.0';
-app.listen(PORT, HOST, () => {
-  console.log(`Server listening on http://${HOST}:${PORT}`);
-});
+
+async function start() {
+  try {
+    await db.runMigrations();
+    app.listen(PORT, HOST, () => {
+      console.log(`Server listening on http://${HOST}:${PORT}`);
+    });
+  } catch (err) {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  }
+}
+
+start();

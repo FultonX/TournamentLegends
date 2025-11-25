@@ -3,6 +3,12 @@
 ## Overview
 This is a Node.js backend API for managing fighting game tournaments with AI-powered commentary. The application supports user authentication, tournament creation, bracket management, and match commentary using OpenAI.
 
+## Recent Changes (Nov 25, 2025)
+- Migrated from SQLite to PostgreSQL (Replit built-in database)
+- Added React frontend built with Vite
+- Updated database migrations for PostgreSQL compatibility
+- Database now uses Replit's managed PostgreSQL service
+
 ## Recent Changes (Nov 23, 2025)
 - Imported GitHub repository and configured for Replit environment
 - Created package.json with all required dependencies
@@ -16,7 +22,8 @@ This is a Node.js backend API for managing fighting game tournaments with AI-pow
 ### Tech Stack
 - **Runtime**: Node.js 20
 - **Framework**: Express.js
-- **Database**: SQLite (better-sqlite3)
+- **Database**: PostgreSQL (Replit managed)
+- **Frontend**: React 18 with Vite
 - **Authentication**: JWT (jsonwebtoken) with bcrypt password hashing
 - **AI Integration**: OpenAI API for match commentary
 - **CORS**: Enabled for cross-origin requests
@@ -26,12 +33,21 @@ This is a Node.js backend API for managing fighting game tournaments with AI-pow
 .
 ├── server.js                 # Main server entry point
 ├── src/
-│   ├── db.js                # Database connection and migration runner
+│   ├── db.js                # PostgreSQL connection and migration runner
 │   ├── routes/
 │   │   └── api.js           # All API endpoints
 │   └── migrations/
-│       ├── 001_schema.sql   # Database schema
+│       ├── 001_schema.sql   # Database schema (PostgreSQL)
 │       └── 002_seed_sf6.sql # Street Fighter 6 character data
+├── client/
+│   ├── src/
+│   │   ├── main.jsx         # React entry point
+│   │   ├── App.jsx          # Main application component
+│   │   ├── api.js           # API client utilities
+│   │   └── index.css        # Styles
+│   ├── index.html           # HTML template
+│   ├── vite.config.js       # Vite configuration
+│   └── package.json         # Client dependencies
 ├── package.json
 └── .gitignore
 ```
@@ -69,15 +85,25 @@ This is a Node.js backend API for managing fighting game tournaments with AI-pow
 - `POST /api/matches/:id/commentary` - Generate AI commentary for a match
 
 ## Environment Variables
+- `DATABASE_URL` - PostgreSQL connection string (auto-configured by Replit)
 - `OPENAI_API_KEY` - Required for AI commentary feature
 - `JWT_SECRET` - Optional, defaults to 'dev-secret' (should be set in production)
 - `PORT` - Optional, defaults to 5000
 
 ## Frontend
-The server is configured to serve a React frontend from `client/dist`, but no frontend is currently built. The API can be accessed directly at the root URL and all endpoints are under `/api`.
+The React frontend is built with Vite and served from `client/dist`. Features include:
+- User login/authentication
+- Tournament listing and selection
+- Current match display
+- AI-powered commentary generation
+
+To rebuild the frontend after changes:
+```bash
+cd client && npm run build
+```
 
 ## Future Enhancements
-- Build React frontend for tournament management UI
 - Implement double-elimination bracket support
 - Add more fighting games and characters
 - Enhance AI commentary with more context
+- Add user registration form in frontend

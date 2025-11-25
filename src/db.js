@@ -1,21 +1,13 @@
 // src/db.js
 const path = require("path");
 const fs = require("fs");
-const Database = require("better-sqlite3");
+const { Pool } = require("pg");
 
-// Where to store the DB file (root folder)
-const dbPath = path.join(__dirname, "..", "tournament.db");
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
-// Open the database
-const db = new Database(dbPath);
-
-// Recommended pragmas
-db.pragma("foreign_keys = ON");
-db.pragma("journal_mode = WAL");
-db.pragma("busy_timeout = 5000");
-
-// Run all .sql files in src/migrations in alphabetical order
-function runMigrations() {
+async function runMigrations() {
   const migrationsDir = path.join(__dirname, "migrations");
 
   if (!fs.existsSync(migrationsDir)) {
@@ -26,7 +18,7 @@ function runMigrations() {
   const files = fs
     .readdirSync(migrationsDir)
     .filter((f) => f.endsWith(".sql"))
-    .sort(); // 001_..., 002_..., etc.
+    .sort();
 
   if (files.length === 0) {
     console.warn("No migration files found in", migrationsDir);
@@ -35,50 +27,61 @@ function runMigrations() {
 
   console.log("Running migrations:", files);
 
-  db.exec("BEGIN");
+  const client = await pool.connect();
   try {
+    await client.query("BEGIN");
     for (const file of files) {
       const fullPath = path.join(migrationsDir, file);
       const sql = fs.readFileSync(fullPath, "utf8");
-      db.exec(sql);
+      await client.query(sql);
     }
-    db.exec("COMMIT");
+    await client.query("COMMIT");
     console.log("Migrations applied successfully.");
   } catch (err) {
-    db.exec("ROLLBACK");
+    await client.query("ROLLBACK");
     console.error("Migration failed:", err);
     throw err;
+  } finally {
+    client.release();
   }
 }
 
-// Run at module load
-runMigrations();
-
-/**
- * Small helper API with get/all/run, shaped to work with `await`.
- * These are synchronous under the hood, but wrapping in async is fine
- * and plays nicely with `await db.get(...)` in your routers.
- */
+function convertPlaceholders(sql) {
+  let index = 0;
+  return sql.replace(/\?/g, () => `$${++index}`);
+}
 
 async function get(sql, params = []) {
-  const stmt = db.prepare(sql);
-  return stmt.get(...params);
+  const pgSql = convertPlaceholders(sql);
+  const result = await pool.query(pgSql, params);
+  return result.rows[0];
 }
 
 async function all(sql, params = []) {
-  const stmt = db.prepare(sql);
-  return stmt.all(...params);
+  const pgSql = convertPlaceholders(sql);
+  const result = await pool.query(pgSql, params);
+  return result.rows;
 }
 
 async function run(sql, params = []) {
-  const stmt = db.prepare(sql);
-  const info = stmt.run(...params);
-  return info; // includes lastInsertRowid, changes
+  let pgSql = convertPlaceholders(sql);
+  
+  const isInsert = pgSql.trim().toUpperCase().startsWith("INSERT");
+  if (isInsert && !pgSql.toUpperCase().includes("RETURNING")) {
+    pgSql = pgSql.replace(/;?\s*$/, " RETURNING id;");
+  }
+  
+  const result = await pool.query(pgSql, params);
+  return {
+    lastID: result.rows[0]?.id,
+    changes: result.rowCount,
+  };
 }
 
 module.exports = {
   get,
   all,
   run,
-  raw: db, // raw access if you ever need it
+  runMigrations,
+  raw: pool,
 };

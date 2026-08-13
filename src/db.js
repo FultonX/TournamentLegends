@@ -1,87 +1,61 @@
-// src/db.js
-const path = require("path");
 const fs = require("fs");
-const { Pool } = require("pg");
+const path = require("path");
+const Database = require("better-sqlite3");
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const databasePath = process.env.DATABASE_PATH || path.join(__dirname, "..", "data", "tournament-legends.sqlite");
 
-async function runMigrations() {
+if (databasePath !== ":memory:") {
+  fs.mkdirSync(path.dirname(databasePath), { recursive: true });
+}
+
+const database = new Database(databasePath);
+database.pragma("foreign_keys = ON");
+database.pragma("journal_mode = WAL");
+database.pragma("busy_timeout = 5000");
+
+function get(sql, params = []) {
+  return database.prepare(sql).get(...params);
+}
+
+function all(sql, params = []) {
+  return database.prepare(sql).all(...params);
+}
+
+function run(sql, params = []) {
+  const result = database.prepare(sql).run(...params);
+  return { lastID: Number(result.lastInsertRowid), changes: result.changes };
+}
+
+function transaction(callback) {
+  return database.transaction(callback)();
+}
+
+function runMigrations() {
   const migrationsDir = path.join(__dirname, "migrations");
+  const files = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();
 
-  if (!fs.existsSync(migrationsDir)) {
-    console.warn("No migrations directory found at", migrationsDir);
-    return;
-  }
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      filename TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 
-  const files = fs
-    .readdirSync(migrationsDir)
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
+  const applyMigration = database.transaction((filename, sql) => {
+    database.exec(sql);
+    database.prepare("INSERT INTO schema_migrations (filename) VALUES (?)").run(filename);
+  });
 
-  if (files.length === 0) {
-    console.warn("No migration files found in", migrationsDir);
-    return;
-  }
-
-  console.log("Running migrations:", files);
-
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    for (const file of files) {
-      const fullPath = path.join(migrationsDir, file);
-      const sql = fs.readFileSync(fullPath, "utf8");
-      await client.query(sql);
+  for (const filename of files) {
+    const applied = get("SELECT filename FROM schema_migrations WHERE filename = ?", [filename]);
+    if (!applied) {
+      applyMigration(filename, fs.readFileSync(path.join(migrationsDir, filename), "utf8"));
     }
-    await client.query("COMMIT");
-    console.log("Migrations applied successfully.");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("Migration failed:", err);
-    throw err;
-  } finally {
-    client.release();
   }
 }
 
-function convertPlaceholders(sql) {
-  let index = 0;
-  return sql.replace(/\?/g, () => `$${++index}`);
+function close() {
+  database.close();
 }
 
-async function get(sql, params = []) {
-  const pgSql = convertPlaceholders(sql);
-  const result = await pool.query(pgSql, params);
-  return result.rows[0];
-}
-
-async function all(sql, params = []) {
-  const pgSql = convertPlaceholders(sql);
-  const result = await pool.query(pgSql, params);
-  return result.rows;
-}
-
-async function run(sql, params = []) {
-  let pgSql = convertPlaceholders(sql);
-  
-  const isInsert = pgSql.trim().toUpperCase().startsWith("INSERT");
-  if (isInsert && !pgSql.toUpperCase().includes("RETURNING")) {
-    pgSql = pgSql.replace(/;?\s*$/, " RETURNING id;");
-  }
-  
-  const result = await pool.query(pgSql, params);
-  return {
-    lastID: result.rows[0]?.id,
-    changes: result.rowCount,
-  };
-}
-
-module.exports = {
-  get,
-  all,
-  run,
-  runMigrations,
-  raw: pool,
-};
+module.exports = { get, all, run, transaction, runMigrations, close, raw: database, databasePath };

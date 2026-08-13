@@ -1,21 +1,26 @@
--- Seed the game -------------------------------------------------
-INSERT INTO games (name, code)
-VALUES ('Street Fighter 6', 'SF6')
-ON CONFLICT (code) DO NOTHING;
+INSERT INTO games (name, code) VALUES ('Street Fighter 6', 'SF6');
 
--- Seed some SF6 characters (extend as needed) -------------------
 INSERT INTO characters (game_id, name, shorthand, is_selectable)
-VALUES
-  ((SELECT id FROM games WHERE code = 'SF6'), 'Ryu',      'RYU', 1),
-  ((SELECT id FROM games WHERE code = 'SF6'), 'Ken',      'KEN', 1),
-  ((SELECT id FROM games WHERE code = 'SF6'), 'Chun-Li',  'CHU', 1),
-  ((SELECT id FROM games WHERE code = 'SF6'), 'Luke',     'LUK', 1),
-  ((SELECT id FROM games WHERE code = 'SF6'), 'Jamie',    'JAM', 1),
-  ((SELECT id FROM games WHERE code = 'SF6'), 'Guile',    'GUI', 1),
-  ((SELECT id FROM games WHERE code = 'SF6'), 'Juri',     'JUR', 1),
-  ((SELECT id FROM games WHERE code = 'SF6'), 'Kimberly', 'KIM', 1),
-  ((SELECT id FROM games WHERE code = 'SF6'), 'Marisa',   'MAR', 1),
-  ((SELECT id FROM games WHERE code = 'SF6'), 'JP',       'JP',  1),
-  ((SELECT id FROM games WHERE code = 'SF6'), 'Manon',    'MAN', 1),
-  ((SELECT id FROM games WHERE code = 'SF6'), 'Zangief',  'ZAN', 1)
-ON CONFLICT DO NOTHING;
+SELECT games.id, roster.name, roster.shorthand, 1
+FROM games
+CROSS JOIN (
+  SELECT 'Ryu' AS name, 'RYU' AS shorthand UNION ALL
+  SELECT 'Ken', 'KEN' UNION ALL
+  SELECT 'Chun-Li', 'CHU' UNION ALL
+  SELECT 'Luke', 'LUK' UNION ALL
+  SELECT 'Jamie', 'JAM' UNION ALL
+  SELECT 'Guile', 'GUI' UNION ALL
+  SELECT 'Juri', 'JUR' UNION ALL
+  SELECT 'Kimberly', 'KIM' UNION ALL
+  SELECT 'Marisa', 'MAR' UNION ALL
+  SELECT 'JP', 'JP' UNION ALL
+  SELECT 'Manon', 'MAN' UNION ALL
+  SELECT 'Zangief', 'ZAN' UNION ALL
+  SELECT 'Lily', 'LIL' UNION ALL
+  SELECT 'Dhalsim', 'DHA' UNION ALL
+  SELECT 'E. Honda', 'HON' UNION ALL
+  SELECT 'Blanka', 'BLA' UNION ALL
+  SELECT 'Dee Jay', 'DEE' UNION ALL
+  SELECT 'Cammy', 'CAM'
+) AS roster
+WHERE games.code = 'SF6';

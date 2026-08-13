@@ -5,10 +5,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
-    port: 5000,
-    strictPort: false,
-    hmr: {
-      clientPort: 5000
+    port: 5173,
+    proxy: {
+      '/api': 'http://localhost:5000'
     }
   }
 });

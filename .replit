@@ -1,7 +1,6 @@
-modules = ["nodejs-20", "postgresql-16"]
+modules = ["nodejs-20"]
 [agent]
 expertMode = true
-integrations = ["javascript_database:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
@@ -24,7 +23,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm start"
+args = "pnpm start"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
